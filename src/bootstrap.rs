@@ -16,6 +16,7 @@ pub async fn join_network(
 
     let reply =
         client::rpc(
+            &mut routing.lock().unwrap(),
             &bootstrap,
             Message::Hello {
                 peer: me,
@@ -28,8 +29,8 @@ pub async fn join_network(
     ) = reply
     {
         println!(
-            "Connected to {}",
-            peer.addr
+            "Connected to {:x?} at {}",
+            peer.id, peer.addr
         );
 
         routing
@@ -42,10 +43,12 @@ pub async fn join_network(
 pub async fn lookup(
     target: [u8;32],
     start: Peer,
+    routing: Arc<Mutex<RoutingTable>>,
 ) -> Vec<Peer> {
 
     let response =
         client::rpc(
+            &mut routing.lock().unwrap(),
             &start.addr.to_string(),
             Message::FindNode {
                 target

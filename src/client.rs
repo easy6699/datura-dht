@@ -1,8 +1,15 @@
 use tokio::net::UdpSocket;
 
-use crate::rpc::Message;
+use crate::{
+    rpc::Message,
+    routing::{Peer, RoutingTable},
+};
 
+///
+/// Send RPC + optionally update routing table
+///
 pub async fn rpc(
+    routing: &mut RoutingTable,
     destination: &str,
     msg: Message,
 ) -> Option<Message> {
@@ -20,15 +27,44 @@ pub async fn rpc(
         .await
         .ok()?;
 
-    let mut buffer = [0u8; 4096];
+    let mut buf = [0u8; 4096];
 
-    let (size, _) =
-        socket.recv_from(&mut buffer)
+    let (len, _) =
+        socket.recv_from(&mut buf)
             .await
             .ok()?;
 
-    serde_json::from_slice(
-        &buffer[..size]
-    )
-    .ok()
+    let reply: Message =
+        serde_json::from_slice(&buf[..len]).ok()?;
+
+    //-------------------------------------------------
+    // AUTO PEER LEARNING
+    //-------------------------------------------------
+
+    match &reply {
+
+        Message::Pong { id, peer } => {
+
+            routing.add_peer(peer.clone());
+
+            routing.add_peer(Peer {
+                id: *id,
+                addr: destination.parse().ok()?,
+            });
+        }
+
+        Message::HelloAck { peer } => {
+            routing.add_peer(peer.clone());
+        }
+
+        Message::Nodes { peers } => {
+            for p in peers {
+                routing.add_peer(p.clone());
+            }
+        }
+
+        _ => {}
+    }
+
+    Some(reply)
 }

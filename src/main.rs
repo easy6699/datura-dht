@@ -54,6 +54,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "init" => { // first node in the network, no bootstrap
             let node = Identity::init_with_value(0);
             node.print_info(); // Should print "first_node_id" exactly.
+            let me = Peer {
+                id: node.node_id,
+                addr: first_node_addr.parse()?,
+            };
+            routing.lock().unwrap().set_local_peer(me);
 
             network::run_server(
                 &first_node_addr,
@@ -76,6 +81,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .unwrap_or(
                         "127.0.0.1:9001".into()
                     );
+            
+            let me = Peer {
+                id: node.node_id,
+                addr: bind.parse()?,
+            };
+            routing.lock().unwrap().set_local_peer(me);
 
             let bootstrap: Option<String> =
                 args.get(3).cloned().unwrap_or(first_node_addr.to_string()).into();
@@ -154,11 +165,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 addr: bootstrap_addr.parse()?,
             };
 
-            println!("Publishing NAT record for {}", hex::encode(identity_behind_nat.node_id));
+            println!("Publishing NAT record for {:x?}", identity_behind_nat.node_id);
 
             dht::publish_nat_record(
                 bootstrap_peer,
                 record,
+                routing.clone()
             )
             .await;
         }
@@ -199,6 +211,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 dht::resolve_nat_record(
                     bootstrap_peer,
                     node_behind_nat_id,
+                    routing.clone()
                 )
                 .await;
 
@@ -244,14 +257,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             println!("Publishing HS descriptor with hash: {}", hex::encode(hs_hash));
+            println!("Node ID: {:x?}", hs.node_id);
+            println!("Address: {}.dn", hs.get_address());
 
             dht::publish_hs_descriptor(
                 bootstrap_peer,
                 descriptor,
+                routing.clone()
             )
             .await;
 
-            println!("published HS descriptor");
         }
 
         "resolve-hs" => {
@@ -290,6 +305,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 dht::resolve_hs_descriptor(
                     bootstrap_peer,
                     hs_id,
+                    routing.clone()
                 )
                 .await;
 

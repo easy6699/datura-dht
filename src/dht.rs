@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use crate::{
     client,
     identity::NodeId,
@@ -6,14 +8,17 @@ use crate::{
     records::Record,
     rpc::Message,
     routing::Peer,
+    routing::RoutingTable,
 };
 
 pub async fn find_closest(
     bootstrap: Peer,
     target: NodeId,
+    routing: Arc<Mutex<RoutingTable>>,
 ) -> Vec<Peer>
 {
     match client::rpc(
+        &mut routing.lock().unwrap(),
         &bootstrap.addr.to_string(),
         Message::FindNode {
             target,
@@ -34,12 +39,15 @@ pub async fn find_closest(
 pub async fn publish_nat_record(
     bootstrap: Peer,
     record: NatRecord,
+    routing: Arc<Mutex<RoutingTable>>,
 )
 {
-    let peers =
+    let routing_for_lookup: Arc<Mutex<RoutingTable>> = Arc::clone(&routing);
+    let peers: Vec<Peer> =
         find_closest(
             bootstrap,
             record.owner,
+            routing_for_lookup,
         )
         .await;
 
@@ -47,6 +55,7 @@ pub async fn publish_nat_record(
 
         let _ =
             client::rpc(
+                &mut routing.lock().unwrap(),
                 &peer.addr.to_string(),
                 Message::Store {
                     key: record.owner,
@@ -62,12 +71,15 @@ pub async fn publish_nat_record(
 pub async fn resolve_nat_record(
     bootstrap: Peer,
     node_id: NodeId,
+    routing: Arc<Mutex<RoutingTable>>,
 ) -> Option<NatRecord>
 {
+    let routing_for_lookup: Arc<Mutex<RoutingTable>> = Arc::clone(&routing);
     let peers =
         find_closest(
             bootstrap,
             node_id,
+            routing_for_lookup,
         )
         .await;
 
@@ -82,6 +94,7 @@ pub async fn resolve_nat_record(
             },
         ) =
             client::rpc(
+                &mut routing.lock().unwrap(),
                 &peer.addr.to_string(),
                 Message::FindValue {
                     key: node_id,
@@ -99,12 +112,15 @@ pub async fn resolve_nat_record(
 pub async fn publish_hs_descriptor(
     bootstrap: Peer,
     record: HSRecord,
+    routing: Arc<Mutex<RoutingTable>>,
 )
 {
+    let routing_for_lookup: Arc<Mutex<RoutingTable>> = Arc::clone(&routing);
     let peers =
         find_closest(
             bootstrap,
             record.hs_hash,
+            routing_for_lookup,
         )
         .await;
 
@@ -112,6 +128,7 @@ pub async fn publish_hs_descriptor(
 
         let _ =
             client::rpc(
+                &mut routing.lock().unwrap(),
                 &peer.addr.to_string(),
                 Message::Store {
                     key: record.hs_hash,
@@ -128,12 +145,15 @@ pub async fn publish_hs_descriptor(
 pub async fn resolve_hs_descriptor(
     bootstrap: Peer,
     hs_hash: NodeId,
+    routing: Arc<Mutex<RoutingTable>>,
 ) -> Option<HSRecord>
 {
-    let peers =
+    let routing_for_lookup: Arc<Mutex<RoutingTable>> = Arc::clone(&routing);
+    let peers: Vec<Peer> =
         find_closest(
             bootstrap,
             hs_hash,
+            routing_for_lookup,
         )
         .await;
 
@@ -150,6 +170,7 @@ pub async fn resolve_hs_descriptor(
             },
         ) =
             client::rpc(
+                &mut routing.lock().unwrap(),
                 &peer.addr.to_string(),
                 Message::FindValue {
                     key: hs_hash,

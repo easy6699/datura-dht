@@ -15,6 +15,7 @@ pub enum Message {
 
     Pong {
         id: NodeId,
+        peer: Peer,
     },
 
     Hello {
