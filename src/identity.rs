@@ -68,9 +68,9 @@ impl Identity {
     pub fn get_address(&self) -> String {
         let pk = self.verifying_key.to_bytes();
 
-        // checksum = first 2 bytes of SHA3-256("onion checksum" || pubkey || version)
+        // checksum = first 2 bytes of SHA3-256(".dn checksum" || pubkey || version)
         let mut hasher = Sha3_256::new();
-        hasher.update(b"onion checksum");
+        hasher.update(b".dn checksum");
         hasher.update(&pk);
         hasher.update([0x03]); // version
         let digest = hasher.finalize();
@@ -87,9 +87,10 @@ impl Identity {
     }
 
     pub fn print_info(&self) {
+        println!("Signing Key: {:x?}", self.signing_key.to_bytes());
+        println!("Public Key: {:x?}", self.verifying_key.as_bytes());
         println!("Node ID: {:x?}", self.node_id);
         println!("Node ID (hex string): {}", hex::encode(self.node_id));
-        println!("Public Key: {:x?}", self.verifying_key.as_bytes());
         println!("Address: {}.dn", self.get_address());
     }
     

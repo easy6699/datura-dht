@@ -7,6 +7,7 @@ mod network;
 mod bootstrap;
 mod client;
 mod dht;
+mod lookup;
 
 use std::sync::{Arc, Mutex};
 use sha2::{Sha256, Digest};
@@ -88,18 +89,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             routing.lock().unwrap().set_local_peer(me);
 
-            let bootstrap: Option<String> =
-                args.get(3).cloned().unwrap_or(first_node_addr.to_string()).into();
+            let bootstrap_id_string: String =
+            args.get(3).cloned().unwrap_or(hex::encode(first_node_id));
+            
+            let bootstrap_id: [u8; 32] = match <[u8; 32]>::from_hex(bootstrap_id_string) {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    eprintln!("Error parsing hex: {}. Ensure it is exactly 64 characters long.", e);
+                    std::process::exit(1);
+                }
+            };
+            
+            let bootstrap_addr: Option<String> =
+                args.get(4).cloned().unwrap_or(first_node_addr.to_string()).into();
 
             let me = Peer {
                 id: node.node_id,
                 addr: bind.parse()?,
             };
 
-            if let Some(addr) = bootstrap {
+            if let Some(addr) = bootstrap_addr {
+
+                println!("Joining network via {:x?} at {}", bootstrap_id, addr);
 
                 bootstrap::join_network(
-                    addr,
+                    addr.clone(),
                     me,
                     routing.clone(),
                 )

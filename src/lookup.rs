@@ -4,10 +4,7 @@ use std::{
 };
 
 use crate::{
-    client,
-    identity::NodeId,
-    routing::{Peer, RoutingTable},
-    rpc::Message,
+    client, identity::NodeId, routing::{self, Peer, RoutingTable}, rpc::Message,
 };
 
 /// Kademlia lookup.
@@ -131,12 +128,12 @@ pub async fn find_node(
                 .values()
                 .min_by(|a,b|{
 
-                    xor_distance(
+                    routing::xor_distance(
                         &a.id,
                         &target,
                     )
                     .cmp(
-                        &xor_distance(
+                        &routing::xor_distance(
                             &b.id,
                             &target,
                         )
@@ -146,7 +143,7 @@ pub async fn find_node(
                 .unwrap();
 
         let best_distance =
-            xor_distance(
+            routing::xor_distance(
                 &best.id,
                 &target,
             );
@@ -177,12 +174,12 @@ pub async fn find_node(
 
     peers.sort_by(|a,b|{
 
-        xor_distance(
+        routing::xor_distance(
             &a.id,
             &target,
         )
         .cmp(
-            &xor_distance(
+            &routing::xor_distance(
                 &b.id,
                 &target,
             )
@@ -219,12 +216,12 @@ fn nearest_unqueried(
         })
         .min_by(|a,b|{
 
-            xor_distance(
+            routing::xor_distance(
                 &a.id,
                 target,
             )
             .cmp(
-                &xor_distance(
+                &routing::xor_distance(
                     &b.id,
                     target,
                 )
@@ -232,24 +229,4 @@ fn nearest_unqueried(
 
         })
         .cloned()
-}
-
-///
-/// XOR distance
-///
-fn xor_distance(
-    a: &NodeId,
-    b: &NodeId,
-) -> [u8;32] {
-
-    let mut out = [0u8;32];
-
-    for i in 0..32 {
-
-        out[i] =
-            a[i] ^ b[i];
-
-    }
-
-    out
 }
